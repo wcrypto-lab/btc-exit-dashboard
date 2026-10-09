@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>비트코인 종합 리스크 대시보드 (Crypto Exit Dashboard)</title>
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --text-color: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-color: #334155;
+
+      /* 5단계 색상 */
+      --lvl-1: #3b82f6; /* 극단적 저평가 (파랑) */
+      --lvl-2: #10b981; /* 저평가 (초록) */
+      --lvl-3: #eab308; /* 중립 (노랑) */
+      --lvl-4: #f97316; /* 고평가 (주황) */
+      --lvl-5: #ef4444; /* 극단적 과열 (빨강) */
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      padding: 20px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    header h1 { font-size: 1.8rem; margin-bottom: 8px; color: #38bdf8; }
+    header p { color: var(--text-muted); font-size: 0.95rem; }
+
+    /* Summary Banner */
+    .summary-card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .summary-title { font-size: 1.1rem; color: var(--text-muted); margin-bottom: 12px; }
+    .action-badge {
+      display: inline-block;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: bold;
+      font-size: 1.2rem;
+      margin-bottom: 12px;
+    }
+    .status-counts {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+      font-size: 0.9rem;
+    }
+    .status-chip {
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-weight: 600;
+      background: rgba(255,255,255,0.05);
+    }
+
+    /* Grid Layout */
+    .indicator-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .card-title { font-size: 1rem; font-weight: bold; }
+    .stage-badge {
+      font-size: 0.8rem;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: bold;
+      color: #fff;
+    }
+
+    .input-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .input-group label { font-size: 0.85rem; color: var(--text-muted); flex: 1; }
+    .input-group input, .input-group select {
+      background: #0f172a;
+      border: 1px solid var(--border-color);
+      color: #fff;
+      padding: 6px 10px;
+      border-radius: 6px;
+      width: 110px;
+      text-align: right;
+    }
+
+    /* Stage Colors */
+    .bg-lvl-1 { background-color: var(--lvl-1); }
+    .bg-lvl-2 { background-color: var(--lvl-2); }
+    .bg-lvl-3 { background-color: var(--lvl-3); color: #000; }
+    .bg-lvl-4 { background-color: var(--lvl-4); }
+    .bg-lvl-5 { background-color: var(--lvl-5); }
+
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>🚨 비트코인 리스크 & 탈출 대시보드</h1>
+    <p>11가지 핵심 지표 기반 5단계 과열도 진단 및 매도 전략 가이드</p>
+  </header>
+
+  <!-- 종합 요약 모듈 -->
+  <section class="summary-card">
+    <div class="summary-title">📊 종합 진단 및 권장 대응 전략</div>
+    <div id="actionBadge" class="action-badge bg-lvl-1">진단 중...</div>
+    <p id="actionDesc" style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.5;"></p>
+    
+    <div class="status-counts">
+      <span class="status-chip" style="color: var(--lvl-5);">🔴 5단계(극단과열): <span id="count5">0</span>개</span>
+      <span class="status-chip" style="color: var(--lvl-4);">🟠 4단계(고평가): <span id="count4">0</span>개</span>
+      <span class="status-chip" style="color: var(--lvl-3);">🟡 3단계(중립): <span id="count3">0</span>개</span>
+      <span class="status-chip" style="color: var(--lvl-2);">🟢 2단계(저평가): <span id="count2">0</span>개</span>
+      <span class="status-chip" style="color: var(--lvl-1);">🔵 1단계(극단저평가): <span id="count1">0</span>개</span>
+    </div>
+  </section>
+
+  <!-- 지표 카드 리스트 -->
+  <main class="indicator-grid" id="gridContainer"></main>
+
+  <footer>
+    <p>© BTC Exit Dashboard | 본 도구는 데이터 모니터링 보조용이며 투자 권유가 아닙니다.</p>
+  </footer>
+
+  <script>
+    // 11개 지표 판정 기준 데이터
+    const indicators = [
+      { id: 'fg', name: '1. 공포·탐욕 지수', unit: '점', default: 45, calc: (v) => v <= 20 ? 1 : v <= 40 ? 2 : v <= 60 ? 3 : v <= 80 ? 4 : 5 },
+      { id: 'dom', name: '2. BTC 도미넌스', unit: '%', default: 55, calc: (v) => v >= 60 ? 1 : v >= 53 ? 2 : v >= 47 ? 3 : v >= 40 ? 4 : 5 },
+      { id: 'alt', name: '3. 알트코인 시즌 인덱스', unit: '점', default: 30, calc: (v) => v <= 25 ? 1 : v <= 45 ? 2 : v <= 55 ? 3 : v <= 74 ? 4 : 5 },
+      { id: 'mvrv', name: '4. MVRV Z-Score', unit: '점', default: 1.2, calc: (v) => v < 0.1 ? 1 : v <= 1.5 ? 2 : v <= 3.0 ? 3 : v <= 5.0 ? 4 : 5 },
+      { id: 'picycle', name: '5. 파이사이클 탑 비율', unit: '비율', default: 0.65, calc: (v) => v < 0.5 ? 1 : v <= 0.7 ? 2 : v <= 0.85 ? 3 : v <= 0.98 ? 4 : 5 },
+      { id: 'rainbow', name: '6. 레인보우 차트 단계', isSelect: true, options: [
+        { text: '1~2단계 (BUY!)', val: 1 },
+        { text: '3~4단계 (Accumulate)', val: 2 },
+        { text: '5단계 (HOLD!)', val: 3 },
+        { text: '6~7단계 (FOMO)', val: 4 },
+        { text: '8~9단계 (SELL!)', val: 5 }
+      ], default: 3, calc: (v) => parseInt(v) },
+      { id: 'ssr', name: '7. 스테이블코인 공급 비율(SSR)', unit: '배', default: 4.8, calc: (v) => v < 3.5 ? 1 : v <= 5.5 ? 2 : v <= 8.0 ? 3 : v <= 12.0 ? 4 : 5 },
+      { id: 'ma200', name: '8. 200일 이평선 격차 비율', unit: '배', default: 1.1, calc: (v) => v < 0.8 ? 1 : v <= 1.2 ? 2 : v <= 1.8 ? 3 : v <= 2.4 ? 4 : 5 },
+      { id: 'rsi', name: '9. 주봉 RSI', unit: 'pt', default: 52, calc: (v) => v <= 35 ? 1 : v <= 50 ? 2 : v <= 65 ? 3 : v <= 80 ? 4 : 5 },
+      { id: 'coinbase', name: '10. 코인베이스 앱 순위', unit: '위', default: 150, calc: (v) => v >= 500 ? 1 : v >= 100 ? 2 : v >= 30 ? 3 : v >= 10 ? 4 : 5 },
+      { id: 'kimchi', name: '11. 김치 프리미엄', unit: '%', default: 2.5, calc: (v) => v < 0 ? 1 : v <= 3.0 ? 2 : v <= 6.0 ? 3 : v <= 10.0 ? 4 : 5 }
+    ];
+
+    const stageNames = { 1: "🔵 1단계 (극단 저평가)", 2: "🟢 2단계 (저평가)", 3: "🟡 3단계 (중립)", 4: "🟠 4단계 (고평가)", 5: "🔴 5단계 (극단 과열)" };
+
+    // 화면 입력폼 생성
+    function init() {
+      const container = document.getElementById('gridContainer');
+      container.innerHTML = '';
+
+      indicators.forEach(ind => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        
+        let inputHtml = '';
+        if(ind.isSelect) {
+          const opts = ind.options.map(o => `<option value="${o.val}" ${o.val === ind.default ? 'selected' : ''}>${o.text}</option>`).join('');
+          inputHtml = `<select id="input_${ind.id}" onchange="updateDashboard()">${opts}</select>`;
+        } else {
+          inputHtml = `<input type="number" id="input_${ind.id}" value="${ind.default}" step="0.1" oninput="updateDashboard()">`;
+        }
+
+        card.innerHTML = `
+          <div class="card-header">
+            <span class="card-title">${ind.name}</span>
+            <span id="badge_${ind.id}" class="stage-badge"></span>
+          </div>
+          <div class="input-group">
+            <label>현재 수치 ${ind.unit ? '('+ind.unit+')' : ''}</label>
+            ${inputHtml}
+          </div>
+        `;
+        container.appendChild(card);
+      });
+
+      updateDashboard();
+    }
+
+    // 대시보드 상태 계산 및 업데이트
+    function updateDashboard() {
+      const counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+
+      indicators.forEach(ind => {
+        const val = parseFloat(document.getElementById(`input_${ind.id}`).value) || 0;
+        const stage = ind.calc(val);
+        counts[stage]++;
+
+        const badge = document.getElementById(`badge_${ind.id}`);
+        badge.innerText = stageNames[stage];
+        badge.className = `stage-badge bg-lvl-${stage}`;
+      });
+
+      // 카운트 표시
+      for(let i=1; i<=5; i++) {
+        document.getElementById(`count${i}`).innerText = counts[i];
+      }
+
+      // 대응 전략 트리거 판단
+      const actionBadge = document.getElementById('actionBadge');
+      const actionDesc = document.getElementById('actionDesc');
+
+      if (counts[5] >= 6) {
+        actionBadge.innerText = "🔴 [탈출 단계] 전량 매도 및 시장 탈출";
+        actionBadge.className = "action-badge bg-lvl-5";
+        actionDesc.innerText = "6개 이상의 지표가 극단적 과열(5단계)을 가리킵니다. 역사적 사이클 피크 구간입니다. 보유 물량의 80~100%를 매도하여 현금화하는 것이 안전합니다.";
+      } else if (counts[5] >= 3 || (counts[4] + counts[5]) >= 7) {
+        actionBadge.innerText = "🟠 [경계 단계] 1차 분할 매도 (익절 개시)";
+        actionBadge.className = "action-badge bg-lvl-4";
+        actionDesc.innerText = "과열 지표가 중첩되고 있습니다. 보유 중인 코인의 30~40%를 단계적으로 분할 매도하여 확정 수익을 챙기세요.";
+      } else if ((counts[4] + counts[5]) >= 5) {
+        actionBadge.innerText = "🟡 [주의 단계] 현금 비중 확대 & 신규 매수 중단";
+        actionBadge.className = "action-badge bg-lvl-3";
+        actionDesc.innerText = "시장이 과열 궤도에 진입했습니다. 신규 입금을 중단하고 취약한 알트코인부터 일부 정리하여 현금 비중을 10~20% 확보하세요.";
+      } else if (counts[1] >= 4 || counts[2] >= 5) {
+        actionBadge.innerText = "🔵 [적축/매수 단계] 적극적 분할 매수 적기";
+        actionBadge.className = "action-badge bg-lvl-1";
+        actionDesc.innerText = "시장이 저평가 및 바닥권 영역에 위치해 있습니다. 장기적 관점에서 비트코인을 모아가기 좋은 구간입니다.";
+      } else {
+        actionBadge.innerText = "🟢 [보유 및 관망 단계] 현 상태 유지";
+        actionBadge.className = "action-badge bg-lvl-2";
+        actionDesc.innerText = "시장이 적정 범위 내에서 움직이고 있습니다. 특별한 매도/매수 조치 없이 기존 포트폴리오를 유지하며 관망합니다.";
+      }
+    }
+
+    window.onload = init;
+  </script>
+</body>
+</html>
